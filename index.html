@@ -7,34 +7,56 @@
 <meta name="robots" content="noindex">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-:root{--bg:#f6f7f9;--card:#fff;--ink:#14171c;--muted:#667085;--line:#e4e7ec;--pos:#12805c;--neg:#c4320a;--acc:#2f5bd3;--band:rgba(47,91,211,.10)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1115;--card:#171a21;--ink:#e8eaee;--muted:#98a2b3;--line:#262b36;--pos:#3ccf91;--neg:#ff7a59;--acc:#7c9cff;--band:rgba(124,156,255,.12)}}
-:root[data-theme="dark"]{--bg:#0f1115;--card:#171a21;--ink:#e8eaee;--muted:#98a2b3;--line:#262b36;--pos:#3ccf91;--neg:#ff7a59;--acc:#7c9cff;--band:rgba(124,156,255,.12)}
+:root{--bg:#f6f7f9;--card:#fff;--ink:#14171c;--muted:#667085;--line:#e4e7ec;--pos:#12805c;--neg:#c4320a;--acc:#2f5bd3;--band:rgba(47,91,211,.10);--warnbg:rgba(196,50,10,.07)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1115;--card:#171a21;--ink:#e8eaee;--muted:#98a2b3;--line:#262b36;--pos:#3ccf91;--neg:#ff7a59;--acc:#7c9cff;--band:rgba(124,156,255,.12);--warnbg:rgba(255,122,89,.08)}}
+:root[data-theme="dark"]{--bg:#0f1115;--card:#171a21;--ink:#e8eaee;--muted:#98a2b3;--line:#262b36;--pos:#3ccf91;--neg:#ff7a59;--acc:#7c9cff;--band:rgba(124,156,255,.12);--warnbg:rgba(255,122,89,.08)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 main{max-width:1100px;margin:0 auto;padding:20px 16px 48px}
-header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:6px 12px;flex-wrap:wrap;margin-bottom:16px}
 h1{font-size:20px;margin:0;letter-spacing:-.01em}
 .sub{color:var(--muted);font-size:12.5px}
-.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid var(--line);margin-left:6px}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid var(--line);margin-left:6px;vertical-align:2px}
 .pill.warn{color:var(--neg);border-color:var(--neg)}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
 .kpi,.card{background:var(--card);border:1px solid var(--line);border-radius:12px}
-.kpi{padding:12px 14px}
+.kpi{padding:12px 14px;min-width:0}
 .kpi .l{color:var(--muted);font-size:12px}
-.kpi .v{font-size:20px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums}
+.kpi .v{font-size:20px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .s{color:var(--muted);font-size:11.5px;margin-top:2px}
 .card{padding:14px;margin-bottom:14px}
-.card h2{font-size:14px;margin:0 0 10px;font-weight:600}
+.card h2{font-size:14px;margin:0 0 10px;font-weight:600;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.card h2 .sub{font-weight:400}
 .chartbox{position:relative;height:280px}
 .tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 .tbl th{color:var(--muted);font-weight:500;text-align:left;font-size:12px;border-bottom:1px solid var(--line);padding:6px 8px;white-space:nowrap}
 .tbl td{padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
 .tbl td.n,.tbl th.n{text-align:right}
-.scroll{overflow-x:auto}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .pos{color:var(--pos)}.neg{color:var(--neg)}.muted{color:var(--muted)}
 .bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin-top:8px}
 .bar>i{display:block;height:100%;background:var(--acc)}
+.bar.dd>i{background:var(--neg)}
+.feed{list-style:none;margin:0;padding:0}
+.feed li{display:flex;gap:10px;padding:7px 4px;border-bottom:1px solid var(--line);font-size:13px}
+.feed li.w{background:var(--warnbg)}
+.feed .tm{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;min-width:44px}
+.feed .tx{min-width:0;overflow-wrap:anywhere}
+.btn{background:none;border:1px solid var(--line);color:var(--acc);border-radius:8px;padding:5px 10px;font:inherit;font-size:12.5px;cursor:pointer;margin-top:8px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.two .card{margin-bottom:0}
+.twowrap{margin-bottom:14px}
 footer{color:var(--muted);font-size:12px;margin-top:8px}
+@media (max-width:640px){
+  main{padding:14px 10px 40px}
+  .grid{grid-template-columns:1fr 1fr;gap:8px}
+  .kpi{padding:10px 12px}.kpi .v{font-size:18px}
+  .chartbox{height:220px}
+  .tbl td,.tbl th{padding:6px 5px;font-size:12.5px}
+  .sm{display:none}
+  .two{grid-template-columns:1fr}
+  header .right{text-align:left!important}
+}
 </style>
 </head>
 <body>
@@ -42,31 +64,43 @@ footer{color:var(--muted);font-size:12px;margin-top:8px}
   <header>
     <div><h1>Algo Bot <span id="state" class="pill">…</span></h1>
       <div class="sub" id="upd">loading…</div></div>
-    <div class="sub" style="text-align:right">IC Markets demo · read-only view<br><span id="plan"></span></div>
+    <div class="sub right" style="text-align:right">IC Markets demo · read-only view<br><span id="plan"></span></div>
   </header>
   <section class="grid" id="kpis"></section>
   <section class="card"><h2>Equity</h2><div class="chartbox"><canvas id="eq"></canvas></div>
     <div class="sub" style="margin-top:6px">Dashed line: the simulation's median path at half the backtested edge (<span id="exp"></span> a year), from the first recorded day.</div></section>
   <section class="card"><h2>Waiting stop orders</h2><div class="scroll"><table class="tbl" id="pend"></table></div>
     <div class="sub" style="margin-top:6px">Breakout entries resting at the broker. When one fills, the other side is cancelled; unfilled orders expire at the cut-off.</div></section>
-  <section class="card"><h2>Open positions</h2><div class="scroll"><table class="tbl" id="open"></table></div></section>
-  <section class="card"><h2>By setup (since start)</h2><div class="scroll"><table class="tbl" id="stats"></table></div></section>
-  <section class="card"><h2>Recent trades</h2><div class="scroll"><table class="tbl" id="closed"></table></div></section>
-  <footer>Times are shown in your device's time zone (<span id="tz"></span>), converted from broker server time (New York + 7h, <span id="srv"></span>). "Best" = the most the trade was up, in R. Data refreshes every minute; the bot uploads every few minutes.</footer>
+  <section class="card"><h2>Open positions <span class="sub" id="opensum"></span></h2><div class="scroll"><table class="tbl" id="open"></table></div></section>
+  <section class="card"><h2>Activity <span class="sub">what the bot did and said</span></h2><ul class="feed" id="feed"></ul>
+    <button class="btn" id="more" hidden>Show all</button></section>
+  <section class="card"><h2>By setup (since start)</h2><div class="scroll"><table class="tbl" id="stats"></table></div>
+    <div class="sub" style="margin-top:6px">Backtest = average R per trade in the 2013–2026 replay with all costs. Live averages over a few trades swing a lot; compare after 30+ trades.</div></section>
+  <div class="two twowrap">
+    <section class="card"><h2>Months</h2><div class="scroll"><table class="tbl" id="months"></table></div></section>
+    <section class="card"><h2>Costs paid <span class="sub">since start</span></h2><div id="costs"></div></section>
+  </div>
+  <section class="card"><h2>Recent trades</h2><div class="scroll"><table class="tbl" id="closed"></table></div>
+    <button class="btn" id="moretr" hidden>Show 40 more</button></section>
+  <footer>Times are shown in your device's time zone (<span id="tz"></span>), converted from broker server time (New York + 7h, <span id="srv"></span>). R = profit in units of the risk taken; "Best" = the most the trade was up, in R. Data refreshes every minute; the bot uploads every few minutes.</footer>
 </main>
 <script>
 const $=s=>document.querySelector(s);
-let chart=null,cur="EUR",off=0;   // off = server clock minus UTC, seconds
-const money=x=>x==null?"–":new Intl.NumberFormat("en-IE",{style:"currency",currency:cur,maximumFractionDigits:2}).format(x);
-const pct=(x,d=1)=>x==null?"–":(x>=0?"+":"")+x.toFixed(d)+"%";
+let chart=null,cur="EUR",off=0,feedAll=false,nTr=20,last=null;
+const money=(x,d=2)=>x==null?"–":new Intl.NumberFormat("en-IE",{style:"currency",currency:cur,maximumFractionDigits:d,minimumFractionDigits:d}).format(x);
+const pct=(x,d=1)=>x==null||!isFinite(x)?"–":(x>=0?"+":"")+x.toFixed(d)+"%";
 const cls=x=>x==null?"":(x>0?"pos":(x<0?"neg":""));
 const p2=n=>String(n).padStart(2,"0");
-const t=s=>{if(!s)return"–";const d=new Date((s-off)*1000);return `${p2(d.getDate())}/${p2(d.getMonth()+1)} ${p2(d.getHours())}:${p2(d.getMinutes())}`};
+const loc=s=>new Date((s-off)*1000);
+const t=s=>{if(!s)return"–";const d=loc(s);return `${p2(d.getDate())}/${p2(d.getMonth()+1)} ${p2(d.getHours())}:${p2(d.getMinutes())}`};
+const tt=s=>{if(!s)return"–";const d=loc(s),n=loc(last?last.updated_server:s);return d.toDateString()===n.toDateString()?`${p2(d.getHours())}:${p2(d.getMinutes())}`:t(s)};   // today: time only
 const r2=x=>x==null?"–":(x>=0?"+":"")+x.toFixed(2)+"R";
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 function kpi(l,v,c="",extra=""){return `<div class="kpi"><div class="l">${l}</div><div class="v ${c}">${v}</div>${extra}</div>`}
+function startEq(days,eq,fromIso){for(const [d,v] of days){if(d>=fromIso)return v}return eq}
 function render(d){
-  cur=d.currency||"EUR";
+  last=d; cur=d.currency||"EUR";
   if(d.updated_server&&d.updated_utc)off=Math.round((d.updated_server-Date.parse(d.updated_utc)/1000)/900)*900;
   $("#tz").textContent=Intl.DateTimeFormat().resolvedOptions().timeZone||"local";
   $("#srv").textContent="now UTC"+(off>=0?"+":"")+(off/3600);
@@ -76,45 +110,96 @@ function render(d){
   $("#upd").textContent=`updated ${new Date(d.updated_utc).toLocaleString()} (${Math.round(age)} min ago)`;
   const st=$("#state"); st.textContent=d.paused?"paused":(age>20?"no update for "+Math.round(age)+" min":"running");
   st.className="pill"+((d.paused||age>20)?" warn":"");
+
+  // ---------- KPIs
   const days=d.equity_days||[], eq=d.equity, first=days.length?days[0][1]:eq;
   const today0=days.length?days[days.length-1][1]:eq, peak=Math.max(eq||0,...days.map(x=>x[1]));
-  const m=d.margin_pct||0;
+  const sd=loc(d.updated_server), dow=(sd.getDay()+6)%7;
+  const iso=x=>`${x.getFullYear()}-${p2(x.getMonth()+1)}-${p2(x.getDate())}`;
+  const monday=new Date(sd);monday.setDate(sd.getDate()-dow);
+  const wk0=startEq(days,eq,iso(monday)), mo0=startEq(days,eq,`${sd.getFullYear()}-${p2(sd.getMonth()+1)}-01`);
+  const m=d.margin_pct||0, ddNow=peak?100*(1-eq/peak):0, bw=d.backtest_worst_dd||29;
+  const cl=d.closed||[], Rs=cl.filter(c=>c.R!=null).map(c=>c.R);
+  const wins=cl.filter(c=>c.pnl>0), gp=wins.reduce((a,c)=>a+c.pnl,0), gl=-cl.filter(c=>c.pnl<0).reduce((a,c)=>a+c.pnl,0);
+  const avgR=Rs.length?Rs.reduce((a,b)=>a+b,0)/Rs.length:null;
+  const ro=d.risk_open||0;
   $("#kpis").innerHTML=
-    kpi("Equity",money(eq))+
-    kpi("Today",pct(today0?100*(eq/today0-1):null,2),cls(eq-today0))+
-    kpi("Since start",pct(first?100*(eq/first-1):null,1),cls(eq-first))+
-    kpi("From peak",pct(peak?-100*(1-eq/peak):0,1),(peak&&eq<peak)?"neg":"")+
-    kpi("Margin used",m.toFixed(0)+"%","",`<div class="bar"><i style="width:${Math.min(100,100*m/d.margin_cap)}%"></i></div><div class="sub">cap ${d.margin_cap}%</div>`)+
-    kpi("Vol brake","×"+(d.brake??1).toFixed(2))+
-    kpi("Open positions",(d.open||[]).length);
+    kpi("Equity",money(eq),"",`<div class="s">balance ${money(d.balance,0)}</div>`)+
+    kpi("Today",pct(today0?100*(eq/today0-1):null,2),cls(eq-today0),`<div class="s">${money(eq-today0)}</div>`)+
+    kpi("This week",pct(wk0?100*(eq/wk0-1):null,1),cls(eq-wk0),`<div class="s">${money(eq-wk0,0)}</div>`)+
+    kpi("This month",pct(mo0?100*(eq/mo0-1):null,1),cls(eq-mo0),`<div class="s">${money(eq-mo0,0)}</div>`)+
+    kpi("Since start",pct(first?100*(eq/first-1):null,1),cls(eq-first),`<div class="s">${money(eq-first,0)} · ${t(d.started).slice(0,5)}</div>`)+
+    kpi("From peak",pct(-ddNow,1),ddNow>0.05?"neg":"",`<div class="bar dd"><i style="width:${Math.min(100,100*ddNow/bw)}%"></i></div><div class="s">backtest worst −${bw.toFixed(0)}%</div>`)+
+    kpi("Open risk",money(ro,0),"",`<div class="s">${eq?(100*ro/eq).toFixed(1):"–"}% if every stop is hit</div>`)+
+    kpi("Margin used",m.toFixed(0)+"%","",`<div class="bar"><i style="width:${Math.min(100,100*m/d.margin_cap)}%"></i></div><div class="s">cap ${d.margin_cap}% · crypto ${d.crypto_cap}%</div>`)+
+    kpi("Trades",String(cl.length),"",`<div class="s">${cl.length?Math.round(100*wins.length/cl.length):"–"}% won · avg ${r2(avgR)} · PF ${gl?(gp/gl).toFixed(2):"–"}</div>`)+
+    kpi("Vol brake","×"+(d.brake??1).toFixed(2),"",`<div class="s">${(d.brake??1)<0.999?"sizes cut: account too volatile":"full size"}</div>`);
+
+  // ---------- chart
   $("#exp").textContent=pct(100*d.expected_median_year,0);
-  const labels=days.map(x=>x[0]), vals=days.map(x=>x[1]);
+  const labels=days.map(x=>x[0].slice(5).split("-").reverse().join("/")), vals=days.map(x=>x[1]);
   if(eq!=null){labels.push("now");vals.push(eq)}
   const g=1+d.expected_median_year, exp=days.map((x,i)=>first*Math.pow(g,i/365));
   if(eq!=null)exp.push(first*Math.pow(g,days.length/365));
   const ds=[{label:"Equity",data:vals,borderColor:css("--acc"),backgroundColor:css("--band"),fill:true,pointRadius:0,tension:.15,borderWidth:2},
             {label:"Simulation median",data:exp,borderColor:css("--muted"),borderDash:[5,4],pointRadius:0,borderWidth:1.2,fill:false}];
-  if(chart){chart.data.labels=labels;chart.data.datasets=ds;chart.update("none")}
-  else chart=new Chart($("#eq"),{type:"line",data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
-    plugins:{legend:{labels:{color:css("--muted"),boxWidth:12}},tooltip:{callbacks:{label:c=>c.dataset.label+": "+money(c.parsed.y)}}},
-    scales:{x:{ticks:{color:css("--muted"),maxTicksLimit:8},grid:{display:false}},y:{ticks:{color:css("--muted"),callback:v=>money(v)},grid:{color:css("--line")}}}}});
-  const op=d.open||[];
-  $("#open").innerHTML=op.length?`<tr><th>Setup</th><th>Symbol</th><th>Side</th><th class="n">Lots</th><th class="n">Entry</th><th class="n">Stop</th><th class="n">Target</th><th class="n">P/L</th><th class="n">Best</th><th>Opened</th><th>Time exit</th></tr>`+
-    op.map(p=>`<tr><td>${p.module}</td><td>${p.sym}</td><td>${p.side}</td><td class="n">${p.lots}</td><td class="n">${p.entry}</td><td class="n">${p.sl}${p.be?" (BE)":""}</td><td class="n">${p.tp??"–"}</td><td class="n ${cls(p.pnl)}">${money(p.pnl)}</td><td class="n muted">${r2(p.best)}</td><td>${t(p.opened)}</td><td>${t(p.exit_at)}</td></tr>`).join("")
-    :`<tr><td class="muted">No open positions</td></tr>`;
+  if(window.Chart&&Chart.prototype&&Chart.prototype.update){
+    if(chart){chart.data.labels=labels;chart.data.datasets=ds;chart.update("none")}
+    else chart=new Chart($("#eq"),{type:"line",data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
+      plugins:{legend:{labels:{color:css("--muted"),boxWidth:12}},tooltip:{callbacks:{label:c=>c.dataset.label+": "+money(c.parsed.y)}}},
+      scales:{x:{ticks:{color:css("--muted"),maxTicksLimit:6},grid:{display:false}},y:{ticks:{color:css("--muted"),callback:v=>money(v,0)},grid:{color:css("--line")}}}}});
+  }
+
+  // ---------- stop orders
   const pe=d.pending||[];
-  $("#pend").innerHTML=pe.length?`<tr><th>Setup</th><th>Symbol</th><th>Order</th><th class="n">Lots</th><th class="n">Level</th><th class="n">Stop</th><th>Placed</th><th>Expires</th></tr>`+
-    pe.map(o=>`<tr><td>${o.module}</td><td>${o.sym}</td><td>${o.side}</td><td class="n">${o.lots??"–"}</td><td class="n">${o.level}</td><td class="n">${o.sl}</td><td>${t(o.placed)}</td><td>${t(o.cancel_at)}</td></tr>`).join("")
+  $("#pend").innerHTML=pe.length?`<tr><th>Setup</th><th>Order</th><th class="n">Level</th><th class="n">Stop</th><th class="n sm">Lots</th><th class="sm">Placed</th><th>Expires</th></tr>`+
+    pe.map(o=>`<tr><td>${o.module}<div class="sub">${o.sym}</div></td><td>${o.side}</td><td class="n">${o.level}</td><td class="n">${o.sl}</td><td class="n sm">${o.lots??"–"}</td><td class="sm">${t(o.placed)}</td><td>${tt(o.cancel_at)}</td></tr>`).join("")
     :`<tr><td class="muted">None waiting</td></tr>`;
-  const mods=Object.keys(d.modules||{});
-  $("#stats").innerHTML=`<tr><th>Setup</th><th class="n">Risk</th><th class="n">Trades</th><th class="n">Win %</th><th class="n">Total R</th><th class="n">P/L</th></tr>`+
-    mods.map(k=>{const s=(d.stats||{})[k]||{n:0,wins:0,R:0,pnl:0},mo=d.modules[k];
-      return `<tr><td>${k}${mo.on?"":" <span class='muted'>(off)</span>"}</td><td class="n">${mo.risk}%</td><td class="n">${s.n}</td><td class="n">${s.n?Math.round(100*s.wins/s.n):"–"}</td><td class="n ${cls(s.R)}">${s.R>=0?"+":""}${s.R.toFixed(2)}</td><td class="n ${cls(s.pnl)}">${money(s.pnl)}</td></tr>`}).join("");
-  const cl=(d.closed||[]).slice().reverse().slice(0,40);
-  $("#closed").innerHTML=cl.length?`<tr><th>Closed</th><th>Setup</th><th>Symbol</th><th>Side</th><th class="n">P/L</th><th class="n">R</th><th class="n">Best</th><th>Reason</th></tr>`+
-    cl.map(c=>`<tr><td>${t(c.closed)}</td><td>${c.module}</td><td>${c.sym}</td><td>${c.side>0?"BUY":"SELL"}</td><td class="n ${cls(c.pnl)}">${money(c.pnl)}</td><td class="n ${cls(c.R)}">${c.R==null?"–":(c.R>=0?"+":"")+c.R.toFixed(2)}</td><td class="n muted">${c.mfe==null?"–":r2(c.mfe)}</td><td class="muted">${c.reason}</td></tr>`).join("")
+
+  // ---------- open positions
+  const op=d.open||[], upl=op.reduce((a,p)=>a+(p.pnl||0),0);
+  $("#opensum").innerHTML=op.length?`${op.length} · <span class="${cls(upl)}">${money(upl)}</span>`:"";
+  $("#open").innerHTML=op.length?`<tr><th>Setup</th><th>Side</th><th class="n sm">Lots</th><th class="n sm">Entry</th><th class="n">Stop</th><th class="n sm">Target</th><th class="n">P/L</th><th class="n">Best</th><th class="sm">Opened</th><th>Exit</th></tr>`+
+    op.map(p=>`<tr><td>${p.module}<div class="sub">${p.sym}</div></td><td>${p.side}</td><td class="n sm">${p.lots}</td><td class="n sm">${p.entry}</td><td class="n">${p.sl}${p.be?" <span class='muted'>(BE)</span>":""}</td><td class="n sm">${p.tp??"–"}</td><td class="n ${cls(p.pnl)}">${money(p.pnl)}</td><td class="n muted">${r2(p.best)}</td><td class="sm">${t(p.opened)}</td><td>${tt(p.exit_at)}</td></tr>`).join("")
+    :`<tr><td class="muted">No open positions</td></tr>`;
+
+  // ---------- activity
+  const ev=d.events||[], showN=feedAll?ev.length:10;
+  $("#feed").innerHTML=ev.length?ev.slice(0,showN).map(e=>`<li class="${e.w?"w":""}"><span class="tm">${tt(e.t)}</span><span class="tx">${esc(e.x)}</span></li>`).join("")
+    :`<li><span class="muted">Nothing yet – fills, skips, stop orders and alerts appear here.</span></li>`;
+  $("#more").hidden=ev.length<=10; $("#more").textContent=feedAll?"Show fewer":`Show all ${ev.length}`;
+
+  // ---------- by setup
+  const mods=Object.keys(d.modules||{}), bt=d.backtest_r||{};
+  $("#stats").innerHTML=`<tr><th>Setup</th><th class="n sm">Risk</th><th class="n">Trades</th><th class="n sm">Win %</th><th class="n">Avg R</th><th class="n">Backtest</th><th class="n sm">Total R</th><th class="n">P/L</th></tr>`+
+    mods.map(k=>{const s=(d.stats||{})[k]||{n:0,wins:0,R:0,pnl:0},mo=d.modules[k],a=s.n?s.R/s.n:null,b=bt[k];
+      return `<tr><td>${k}${mo.on?"":" <span class='muted'>(off)</span>"}</td><td class="n sm">${mo.risk}%</td><td class="n">${s.n}</td><td class="n sm">${s.n?Math.round(100*s.wins/s.n):"–"}</td><td class="n ${cls(a)}">${a==null?"–":r2(a)}</td><td class="n muted">${b==null?"–":r2(b)}</td><td class="n sm ${cls(s.R)}">${s.R>=0?"+":""}${s.R.toFixed(2)}</td><td class="n ${cls(s.pnl)}">${money(s.pnl,0)}</td></tr>`}).join("");
+
+  // ---------- months
+  const ms={}; for(const [dd,v] of days){const k=dd.slice(0,7);if(!(k in ms))ms[k]=v}
+  const keys=Object.keys(ms).sort();
+  $("#months").innerHTML=keys.length?`<tr><th>Month</th><th class="n">Return</th><th class="n">P/L</th></tr>`+
+    keys.slice().reverse().map((k,i,arr)=>{const a=ms[k],nx=keys.indexOf(k)+1,b=nx<keys.length?ms[keys[nx]]:eq,r=100*(b/a-1);
+      return `<tr><td>${new Date(k+"-15").toLocaleString("en-GB",{month:"short",year:"numeric"})}${nx<keys.length?"":" <span class='muted'>(so far)</span>"}</td><td class="n ${cls(r)}">${pct(r)}</td><td class="n ${cls(b-a)}">${money(b-a,0)}</td></tr>`}).join("")
+    :`<tr><td class="muted">–</td></tr>`;
+
+  // ---------- costs
+  const c=d.costs;
+  $("#costs").innerHTML=c?`<table class="tbl"><tr><td>Commission</td><td class="n ${cls(c.commission)}">${money(c.commission)}</td></tr>
+    <tr><td>Swaps (overnight)</td><td class="n ${cls(c.swap)}">${money(c.swap)}</td></tr>
+    <tr><td><b>Total</b></td><td class="n ${cls(c.commission+c.swap)}"><b>${money(c.commission+c.swap)}</b></td></tr></table>
+    <div class="sub" style="margin-top:8px">Spreads aren't listed: they're inside the fill prices. Commission is only on gold and USDJPY; indices and BTC trade commission-free.</div>`
+    :`<div class="muted">Not available yet.</div>`;
+
+  // ---------- recent trades
+  const rc=cl.slice().reverse();
+  $("#closed").innerHTML=rc.length?`<tr><th>Closed</th><th>Setup</th><th class="sm">Side</th><th class="n">P/L</th><th class="n">R</th><th class="n">Best</th><th class="sm">Reason</th></tr>`+
+    rc.slice(0,nTr).map(c=>`<tr><td>${tt(c.closed)}</td><td>${c.module}<div class="sub">${c.sym}</div></td><td class="sm">${c.side>0?"BUY":"SELL"}</td><td class="n ${cls(c.pnl)}">${money(c.pnl)}</td><td class="n ${cls(c.R)}">${c.R==null?"–":(c.R>=0?"+":"")+c.R.toFixed(2)}</td><td class="n muted">${c.mfe==null?"–":r2(c.mfe)}</td><td class="muted sm">${c.reason}</td></tr>`).join("")
     :`<tr><td class="muted">No closed trades yet</td></tr>`;
+  $("#moretr").hidden=rc.length<=nTr;
 }
+$("#more").onclick=()=>{feedAll=!feedAll;if(last)render(last)};
+$("#moretr").onclick=()=>{nTr+=40;if(last)render(last)};
 async function load(){try{const r=await fetch("data.json?t="+Date.now(),{cache:"no-store"});render(await r.json())}catch(e){$("#upd").textContent="could not load data.json – "+e}}
 load();setInterval(load,60000);
 </script>
