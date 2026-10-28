@@ -42,27 +42,36 @@ footer{color:var(--muted);font-size:12px;margin-top:8px}
   <header>
     <div><h1>Algo Bot <span id="state" class="pill">…</span></h1>
       <div class="sub" id="upd">loading…</div></div>
-    <div class="sub">IC Markets demo · read-only view</div>
+    <div class="sub" style="text-align:right">IC Markets demo · read-only view<br><span id="plan"></span></div>
   </header>
   <section class="grid" id="kpis"></section>
   <section class="card"><h2>Equity</h2><div class="chartbox"><canvas id="eq"></canvas></div>
     <div class="sub" style="margin-top:6px">Dashed line: the simulation's median path at half the backtested edge (<span id="exp"></span> a year), from the first recorded day.</div></section>
+  <section class="card"><h2>Waiting stop orders</h2><div class="scroll"><table class="tbl" id="pend"></table></div>
+    <div class="sub" style="margin-top:6px">Breakout entries resting at the broker. When one fills, the other side is cancelled; unfilled orders expire at the cut-off.</div></section>
   <section class="card"><h2>Open positions</h2><div class="scroll"><table class="tbl" id="open"></table></div></section>
   <section class="card"><h2>By setup (since start)</h2><div class="scroll"><table class="tbl" id="stats"></table></div></section>
   <section class="card"><h2>Recent trades</h2><div class="scroll"><table class="tbl" id="closed"></table></div></section>
-  <footer>Times are broker server time (New York + 7h). Data refreshes every minute; the bot uploads every few minutes.</footer>
+  <footer>Times are shown in your device's time zone (<span id="tz"></span>), converted from broker server time (New York + 7h, <span id="srv"></span>). "Best" = the most the trade was up, in R. Data refreshes every minute; the bot uploads every few minutes.</footer>
 </main>
 <script>
 const $=s=>document.querySelector(s);
-let chart=null,cur="EUR";
+let chart=null,cur="EUR",off=0;   // off = server clock minus UTC, seconds
 const money=x=>x==null?"–":new Intl.NumberFormat("en-IE",{style:"currency",currency:cur,maximumFractionDigits:2}).format(x);
 const pct=(x,d=1)=>x==null?"–":(x>=0?"+":"")+x.toFixed(d)+"%";
 const cls=x=>x==null?"":(x>0?"pos":(x<0?"neg":""));
-const t=s=>{if(!s)return"–";const d=new Date(s*1000);return d.toISOString().slice(5,16).replace("T"," ").replace("-","/")};
+const p2=n=>String(n).padStart(2,"0");
+const t=s=>{if(!s)return"–";const d=new Date((s-off)*1000);return `${p2(d.getDate())}/${p2(d.getMonth()+1)} ${p2(d.getHours())}:${p2(d.getMinutes())}`};
+const r2=x=>x==null?"–":(x>=0?"+":"")+x.toFixed(2)+"R";
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 function kpi(l,v,c="",extra=""){return `<div class="kpi"><div class="l">${l}</div><div class="v ${c}">${v}</div>${extra}</div>`}
 function render(d){
   cur=d.currency||"EUR";
+  if(d.updated_server&&d.updated_utc)off=Math.round((d.updated_server-Date.parse(d.updated_utc)/1000)/900)*900;
+  $("#tz").textContent=Intl.DateTimeFormat().resolvedOptions().timeZone||"local";
+  $("#srv").textContent="now UTC"+(off>=0?"+":"")+(off/3600);
+  const pl=d.plan||{};
+  $("#plan").textContent=(pl.version||"")+(pl.stop_entries&&pl.stop_entries.length?" · stop entries: "+pl.stop_entries.join(", "):"")+(pl.lot_rounding?" · lots: "+pl.lot_rounding:"");
   const now=Date.now()/1000, age=(now-Date.parse(d.updated_utc)/1000)/60;
   $("#upd").textContent=`updated ${new Date(d.updated_utc).toLocaleString()} (${Math.round(age)} min ago)`;
   const st=$("#state"); st.textContent=d.paused?"paused":(age>20?"no update for "+Math.round(age)+" min":"running");
@@ -90,16 +99,20 @@ function render(d){
     plugins:{legend:{labels:{color:css("--muted"),boxWidth:12}},tooltip:{callbacks:{label:c=>c.dataset.label+": "+money(c.parsed.y)}}},
     scales:{x:{ticks:{color:css("--muted"),maxTicksLimit:8},grid:{display:false}},y:{ticks:{color:css("--muted"),callback:v=>money(v)},grid:{color:css("--line")}}}}});
   const op=d.open||[];
-  $("#open").innerHTML=op.length?`<tr><th>Setup</th><th>Symbol</th><th>Side</th><th class="n">Lots</th><th class="n">Entry</th><th class="n">Stop</th><th class="n">Target</th><th class="n">P/L</th><th>Opened</th><th>Time exit</th></tr>`+
-    op.map(p=>`<tr><td>${p.module}</td><td>${p.sym}</td><td>${p.side}</td><td class="n">${p.lots}</td><td class="n">${p.entry}</td><td class="n">${p.sl}${p.be?" (BE)":""}</td><td class="n">${p.tp??"–"}</td><td class="n ${cls(p.pnl)}">${money(p.pnl)}</td><td>${t(p.opened)}</td><td>${t(p.exit_at)}</td></tr>`).join("")
+  $("#open").innerHTML=op.length?`<tr><th>Setup</th><th>Symbol</th><th>Side</th><th class="n">Lots</th><th class="n">Entry</th><th class="n">Stop</th><th class="n">Target</th><th class="n">P/L</th><th class="n">Best</th><th>Opened</th><th>Time exit</th></tr>`+
+    op.map(p=>`<tr><td>${p.module}</td><td>${p.sym}</td><td>${p.side}</td><td class="n">${p.lots}</td><td class="n">${p.entry}</td><td class="n">${p.sl}${p.be?" (BE)":""}</td><td class="n">${p.tp??"–"}</td><td class="n ${cls(p.pnl)}">${money(p.pnl)}</td><td class="n muted">${r2(p.best)}</td><td>${t(p.opened)}</td><td>${t(p.exit_at)}</td></tr>`).join("")
     :`<tr><td class="muted">No open positions</td></tr>`;
+  const pe=d.pending||[];
+  $("#pend").innerHTML=pe.length?`<tr><th>Setup</th><th>Symbol</th><th>Order</th><th class="n">Lots</th><th class="n">Level</th><th class="n">Stop</th><th>Placed</th><th>Expires</th></tr>`+
+    pe.map(o=>`<tr><td>${o.module}</td><td>${o.sym}</td><td>${o.side}</td><td class="n">${o.lots??"–"}</td><td class="n">${o.level}</td><td class="n">${o.sl}</td><td>${t(o.placed)}</td><td>${t(o.cancel_at)}</td></tr>`).join("")
+    :`<tr><td class="muted">None waiting</td></tr>`;
   const mods=Object.keys(d.modules||{});
   $("#stats").innerHTML=`<tr><th>Setup</th><th class="n">Risk</th><th class="n">Trades</th><th class="n">Win %</th><th class="n">Total R</th><th class="n">P/L</th></tr>`+
     mods.map(k=>{const s=(d.stats||{})[k]||{n:0,wins:0,R:0,pnl:0},mo=d.modules[k];
       return `<tr><td>${k}${mo.on?"":" <span class='muted'>(off)</span>"}</td><td class="n">${mo.risk}%</td><td class="n">${s.n}</td><td class="n">${s.n?Math.round(100*s.wins/s.n):"–"}</td><td class="n ${cls(s.R)}">${s.R>=0?"+":""}${s.R.toFixed(2)}</td><td class="n ${cls(s.pnl)}">${money(s.pnl)}</td></tr>`}).join("");
   const cl=(d.closed||[]).slice().reverse().slice(0,40);
-  $("#closed").innerHTML=cl.length?`<tr><th>Closed</th><th>Setup</th><th>Symbol</th><th>Side</th><th class="n">P/L</th><th class="n">R</th><th>Reason</th></tr>`+
-    cl.map(c=>`<tr><td>${t(c.closed)}</td><td>${c.module}</td><td>${c.sym}</td><td>${c.side>0?"BUY":"SELL"}</td><td class="n ${cls(c.pnl)}">${money(c.pnl)}</td><td class="n ${cls(c.R)}">${c.R==null?"–":(c.R>=0?"+":"")+c.R.toFixed(2)}</td><td class="muted">${c.reason}</td></tr>`).join("")
+  $("#closed").innerHTML=cl.length?`<tr><th>Closed</th><th>Setup</th><th>Symbol</th><th>Side</th><th class="n">P/L</th><th class="n">R</th><th class="n">Best</th><th>Reason</th></tr>`+
+    cl.map(c=>`<tr><td>${t(c.closed)}</td><td>${c.module}</td><td>${c.sym}</td><td>${c.side>0?"BUY":"SELL"}</td><td class="n ${cls(c.pnl)}">${money(c.pnl)}</td><td class="n ${cls(c.R)}">${c.R==null?"–":(c.R>=0?"+":"")+c.R.toFixed(2)}</td><td class="n muted">${c.mfe==null?"–":r2(c.mfe)}</td><td class="muted">${c.reason}</td></tr>`).join("")
     :`<tr><td class="muted">No closed trades yet</td></tr>`;
 }
 async function load(){try{const r=await fetch("data.json?t="+Date.now(),{cache:"no-store"});render(await r.json())}catch(e){$("#upd").textContent="could not load data.json – "+e}}
