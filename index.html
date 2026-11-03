@@ -105,7 +105,9 @@ function render(d){
   $("#tz").textContent=Intl.DateTimeFormat().resolvedOptions().timeZone||"local";
   $("#srv").textContent="now UTC"+(off>=0?"+":"")+(off/3600);
   const pl=d.plan||{};
-  $("#plan").textContent=(pl.version||"")+(pl.stop_entries&&pl.stop_entries.length?" · stop entries: "+pl.stop_entries.join(", "):"")+(pl.lot_rounding?" · lots: "+pl.lot_rounding:"");
+  const sk=pl.skips||{}, skm=(sk.modules||[]).filter(x=>x.events.includes("fomc")).map(x=>x.module);
+  const fed=skm.length?" · Fed days off: "+skm.join(", ")+(sk.today_fomc?" (today!)":(sk.next_fomc?" (next "+sk.next_fomc.slice(5).split("-").reverse().join(".")+")":"")):"";
+  $("#plan").textContent=(pl.version||"")+(pl.stop_entries&&pl.stop_entries.length?" · stop entries: "+pl.stop_entries.join(", "):"")+(pl.lot_rounding?" · lots: "+pl.lot_rounding:"")+fed;
   const now=Date.now()/1000, age=(now-Date.parse(d.updated_utc)/1000)/60;
   $("#upd").textContent=`updated ${new Date(d.updated_utc).toLocaleString()} (${Math.round(age)} min ago)`;
   const st=$("#state"); st.textContent=d.paused?"paused":(age>20?"no update for "+Math.round(age)+" min":"running");
