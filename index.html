@@ -202,7 +202,18 @@ function render(d){
 }
 $("#more").onclick=()=>{feedAll=!feedAll;if(last)render(last)};
 $("#moretr").onclick=()=>{nTr+=40;if(last)render(last)};
-async function load(){try{const r=await fetch("data.json?t="+Date.now(),{cache:"no-store"});render(await r.json())}catch(e){$("#upd").textContent="could not load data.json – "+e}}
+// Read data.json straight from the repo (raw.githubusercontent.com), so the page doesn't wait for GitHub Pages to rebuild
+// the site after every upload; fall back to the Pages copy. owner.github.io/repo/ -> owner/repo
+function rawUrls(){const h=location.hostname,seg=location.pathname.split("/").filter(Boolean);
+  if(!h.endsWith(".github.io")||!seg.length)return [];
+  const b=`https://raw.githubusercontent.com/${h.split(".")[0]}/${seg[0]}/`;return ["data","main"].map(x=>`${b}${x}/data.json?t=${Date.now()}`)}
+async function tryJson(u){try{const r=await fetch(u,{cache:"no-store"});return r.ok?await r.json():null}catch(e){return null}}
+async function getData(){            // the newest of: data branch, main branch, the Pages copy
+  const all=(await Promise.all([...rawUrls(),"data.json?t="+Date.now()].map(tryJson))).filter(x=>x&&x.updated_utc);
+  if(!all.length)throw new Error("no data.json found");
+  return all.sort((a,b)=>a.updated_utc<b.updated_utc?1:-1)[0]}
+async function load(){try{const a=await getData();
+  if(!last||!a.updated_utc||!last.updated_utc||a.updated_utc>=last.updated_utc)render(a)}catch(e){$("#upd").textContent="could not load data.json – "+e}}
 load();setInterval(load,60000);
 </script>
 </body>
