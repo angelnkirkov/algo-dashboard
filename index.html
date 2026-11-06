@@ -47,6 +47,14 @@ h1{font-size:20px;margin:0;letter-spacing:-.01em}
 .two .card{margin-bottom:0}
 .twowrap{margin-bottom:14px}
 footer{color:var(--muted);font-size:12px;margin-top:8px}
+.hl{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px}
+.hl b{font-weight:600}
+.ok{color:var(--pos)}.bad{color:var(--neg)}
+.rows{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center;font-size:13px}
+.rows .bar{margin-top:0}
+.up li .tx{font-size:13px}
+.up .tm{min-width:82px}
+.tag{display:inline-block;font-size:11px;padding:0 6px;border-radius:6px;border:1px solid var(--line);color:var(--muted);margin-left:4px}
 @media (max-width:640px){
   main{padding:14px 10px 40px}
   .grid{grid-template-columns:1fr 1fr;gap:8px}
@@ -67,15 +75,24 @@ footer{color:var(--muted);font-size:12px;margin-top:8px}
     <div class="sub right" style="text-align:right">IC Markets demo · read-only view<br><span id="plan"></span></div>
   </header>
   <section class="grid" id="kpis"></section>
+  <section class="card"><h2>Bot health <span class="sub" id="hsum"></span></h2><div class="hl" id="health"></div></section>
+  <section class="card"><h2>Coming up <span class="sub">today and tomorrow</span></h2><ul class="feed up" id="upc"></ul></section>
   <section class="card"><h2>Equity</h2><div class="chartbox"><canvas id="eq"></canvas></div>
     <div class="sub" style="margin-top:6px">Dashed line: the simulation's median path at half the backtested edge (<span id="exp"></span> a year), from the first recorded day.</div></section>
   <section class="card"><h2>Waiting stop orders</h2><div class="scroll"><table class="tbl" id="pend"></table></div>
     <div class="sub" style="margin-top:6px">Breakout entries resting at the broker. When one fills, the other side is cancelled; unfilled orders expire at the cut-off.</div></section>
   <section class="card"><h2>Open positions <span class="sub" id="opensum"></span></h2><div class="scroll"><table class="tbl" id="open"></table></div></section>
+  <div class="two twowrap">
+    <section class="card"><h2>Risk right now <span class="sub">if every stop is hit</span></h2><div id="riskc"></div></section>
+    <section class="card"><h2>On track? <span class="sub">live vs backtest</span></h2><div class="scroll"><table class="tbl" id="track"></table></div>
+      <div class="sub" style="margin-top:6px">Expected = trades × backtest average R. Normal range = where 95% of results land by luck alone (±2 standard deviations). Outside it on the low side = worth a look. Judged from 10 trades.</div></section>
+  </div>
   <section class="card"><h2>Activity <span class="sub">what the bot did and said</span></h2><ul class="feed" id="feed"></ul>
     <button class="btn" id="more" hidden>Show all</button></section>
   <section class="card"><h2>By setup (since start)</h2><div class="scroll"><table class="tbl" id="stats"></table></div>
     <div class="sub" style="margin-top:6px">Backtest = average R per trade in the 2013–2026 replay with all costs. Live averages over a few trades swing a lot; compare after 30+ trades.</div></section>
+  <section class="card"><h2>Execution quality <span class="sub">how fills compare with the plan</span></h2><div class="scroll"><table class="tbl" id="xq"></table></div>
+    <div class="sub" style="margin-top:6px">Slippage = fill vs the planned price (stop level or the price sent), in R; negative = worse than planned. Spread = cost of the spread at entry, in R. The backtest assumed about half a spread of slippage on stop fills.</div></section>
   <div class="two twowrap">
     <section class="card"><h2>Months</h2><div class="scroll"><table class="tbl" id="months"></table></div></section>
     <section class="card"><h2>Costs paid <span class="sub">since start</span></h2><div id="costs"></div></section>
@@ -98,6 +115,8 @@ const r2=x=>x==null?"–":(x>=0?"+":"")+x.toFixed(2)+"R";
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 function kpi(l,v,c="",extra=""){return `<div class="kpi"><div class="l">${l}</div><div class="v ${c}">${v}</div>${extra}</div>`}
+function exitCell(p){if(p.exit_at)return tt(p.exit_at);const e=p.exit_rule;if(!e)return "–";
+  return `signal<div class="sub">${esc(e.rule)}${e.max_exit?" · max "+t(e.max_exit):""}</div>`}
 function startEq(days,eq,fromIso){for(const [d,v] of days){if(d>=fromIso)return v}return eq}
 function render(d){
   last=d; cur=d.currency||"EUR";
@@ -135,7 +154,54 @@ function render(d){
     kpi("Open risk",money(ro,0),"",`<div class="s">${eq?(100*ro/eq).toFixed(1):"–"}% if every stop is hit</div>`)+
     kpi("Margin used",m.toFixed(0)+"%","",`<div class="bar"><i style="width:${Math.min(100,100*m/d.margin_cap)}%"></i></div><div class="s">cap ${d.margin_cap}% · crypto ${d.crypto_cap}%</div>`)+
     kpi("Trades",String(cl.length),"",`<div class="s">${cl.length?Math.round(100*wins.length/cl.length):"–"}% won · avg ${r2(avgR)} · PF ${gl?(gp/gl).toFixed(2):"–"}</div>`)+
-    kpi("Vol brake","×"+(d.brake??1).toFixed(2),"",`<div class="s">${(d.brake??1)<0.999?"sizes cut: account too volatile":"full size"}</div>`);
+    kpi("Vol brake","×"+(d.brake??1).toFixed(2),"",`<div class="s">${(d.brake??1)<0.999?"sizes cut: account swinging more than "+Math.round(100*((d.risk||{}).brake_target||.4))+"%/yr":"full size"} · last ${(d.risk||{}).brake_days||60} days</div>`);
+
+  // ---------- health
+  const h=d.health||{}, hbAge=h.heartbeat&&h.now?Math.round((h.now-h.heartbeat)/60):null;
+  const hOk=(hbAge!=null&&hbAge<15)&&h.mt5_connected!==false&&!(h.rejects_7d>0);
+  $("#hsum").innerHTML=hOk?'<span class="ok">all good</span>':'<span class="bad">check</span>';
+  $("#health").innerHTML=[
+    `<span>Heartbeat <b class="${hbAge!=null&&hbAge<15?"ok":"bad"}">${hbAge==null?"–":hbAge+" min ago"}</b></span>`,
+    `<span>MT5 <b class="${h.mt5_connected===false?"bad":"ok"}">${h.mt5_connected==null?"–":(h.mt5_connected?"connected":"DISCONNECTED")}</b></span>`,
+    `<span>Restarts (7 days) <b>${h.restarts_7d??"–"}</b>${h.last_restart?` <span class="muted">last ${t(h.last_restart)}</span>`:""}</span>`,
+    `<span>Warnings (7 days) <b class="${h.warnings_7d?"bad":""}">${h.warnings_7d??"–"}</b></span>`,
+    `<span>Rejected orders (7 days) <b class="${h.rejects_7d?"bad":""}">${h.rejects_7d??"–"}</b></span>`,
+    h.last_warning?`<span class="muted" style="flex-basis:100%">Last warning ${t(h.last_warning[0])}: ${esc(h.last_warning[1])}</span>`:""].join("");
+
+  // ---------- coming up
+  const up=(d.upcoming||[]).filter(e=>e.t>=(d.updated_server||0)-1800);
+  $("#upc").innerHTML=up.length?up.map(e=>`<li><span class="tm">${tt(e.t)}</span><span class="tx">${esc(e.x)}</span></li>`).join("")
+    :`<li><span class="muted">Nothing scheduled.</span></li>`;
+
+  // ---------- risk right now
+  const rk=d.risk||{}, gr=rk.groups||{}, gmax=Math.max(1,...Object.values(gr));
+  const dayPct=rk.day_start?100*(eq/rk.day_start-1):null, dsp=rk.daily_stop_pct;
+  $("#riskc").innerHTML=`<div class="rows">`+
+    (Object.keys(gr).length?Object.entries(gr).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span>${k}</span><div class="bar"><i style="width:${100*v/gmax}%"></i></div><span class="n">${money(v,0)} <span class="muted">${eq?(100*v/eq).toFixed(1):"–"}%</span></span>`).join("")
+      :`<span class="muted">No open risk</span><span></span><span></span>`)+
+    `<span>Long / short</span><span class="muted">${money(rk.long||0,0)} / ${money(rk.short||0,0)}</span><span></span>`+
+    (dsp?`<span>Today vs daily stop</span><div class="bar dd"><i style="width:${dayPct!=null&&dayPct<0?Math.min(100,100*-dayPct/dsp):0}%"></i></div><span class="n ${cls(dayPct)}">${pct(dayPct,1)} <span class="muted">/ −${dsp}%</span></span>`:"")+
+    `</div>`+(rk.day_stopped?`<div class="bad" style="margin-top:8px">🛑 Daily loss stop active: no new trades until tomorrow.</div>`:"");
+
+  // ---------- on track?
+  const bsd=d.backtest_sd||{}, btr=d.backtest_r||{}, rowsT=[]; let tn=0,tR=0,tE=0,tV=0;
+  for(const [k,s0] of Object.entries(d.stats||{})){if(!s0.n||btr[k]==null)continue;
+    const e=s0.n*btr[k], sd=(bsd[k]||1)*Math.sqrt(s0.n); tn+=s0.n;tR+=s0.R;tE+=e;tV+=sd*sd;rowsT.push([k,s0.n,s0.R,e,sd])}
+  const verdict=(R,e,sd,n)=>n<10?'<span class="muted">few trades</span>':R<e-2*sd?'<span class="bad">below normal</span>':(R>e+2*sd?'<span class="ok">above normal</span>':'<span class="ok">✓ normal</span>');
+  const rowT=(k,n,R,e,sd,b)=>`<tr><td>${b?"<b>"+k+"</b>":k}</td><td class="n">${n}</td><td class="n ${cls(R)}">${r2(R)}</td><td class="n muted">${r2(e)}</td><td class="n sm muted">${r2(e-2*sd)} … ${r2(e+2*sd)}</td><td>${verdict(R,e,sd,n)}</td></tr>`;
+  $("#track").innerHTML=rowsT.length?`<tr><th>Setup</th><th class="n">Trades</th><th class="n">Live R</th><th class="n">Expected</th><th class="n sm">Normal range</th><th></th></tr>`+
+    rowT("All setups",tn,tR,tE,Math.sqrt(tV),true)+rowsT.sort((a,b)=>b[1]-a[1]).map(x=>rowT(...x)).join("")
+    :`<tr><td class="muted">No closed trades yet</td></tr>`;
+
+  // ---------- execution quality
+  const xs=(d.closed||[]).filter(c=>c.xq), agg={};
+  for(const c of xs){for(const k of ["Stop-order fills","Market entries",c.module]){
+    if(k==="Stop-order fills"&&c.xq.t!=="stop")continue; if(k==="Market entries"&&c.xq.t!=="market")continue;
+    const a=agg[k]||(agg[k]={n:0,sl:0,sp:0,ns:0}); a.n++; a.sl+=(c.xq.slip_r||0); if(c.xq.spr_r!=null){a.sp+=c.xq.spr_r;a.ns++}}}
+  const order=["Stop-order fills","Market entries",...Object.keys(agg).filter(k=>!k.includes(" fills")&&k!=="Market entries").sort()];
+  $("#xq").innerHTML=xs.length?`<tr><th>Group</th><th class="n">Trades</th><th class="n">Avg slippage</th><th class="n">Avg spread</th></tr>`+
+    order.filter(k=>agg[k]).map((k,i)=>{const a=agg[k],sl=-a.sl/a.n;return `<tr><td>${i<2?"<b>"+k+"</b>":k}</td><td class="n">${a.n}</td><td class="n ${sl<-0.02?"neg":""}">${(sl>=0?"+":"")+sl.toFixed(3)}R</td><td class="n muted">${a.ns?(a.sp/a.ns).toFixed(3)+"R":"–"}</td></tr>`}).join("")
+    :`<tr><td class="muted">Collected from now on: each new trade records its fill and spread.</td></tr>`;
 
   // ---------- chart
   $("#exp").textContent=pct(100*d.expected_median_year,0);
@@ -162,7 +228,7 @@ function render(d){
   const op=d.open||[], upl=op.reduce((a,p)=>a+(p.pnl||0),0);
   $("#opensum").innerHTML=op.length?`${op.length} · <span class="${cls(upl)}">${money(upl)}</span>`:"";
   $("#open").innerHTML=op.length?`<tr><th>Setup</th><th>Side</th><th class="n sm">Lots</th><th class="n sm">Entry</th><th class="n">Stop</th><th class="n sm">Target</th><th class="n">P/L</th><th class="n">Best</th><th class="sm">Opened</th><th>Exit</th></tr>`+
-    op.map(p=>`<tr><td>${p.module}<div class="sub">${p.sym}</div></td><td>${p.side}</td><td class="n sm">${p.lots}</td><td class="n sm">${p.entry}</td><td class="n">${p.sl}${p.be?" <span class='muted'>(BE)</span>":""}</td><td class="n sm">${p.tp??"–"}</td><td class="n ${cls(p.pnl)}">${money(p.pnl)}</td><td class="n muted">${r2(p.best)}</td><td class="sm">${t(p.opened)}</td><td>${tt(p.exit_at)}</td></tr>`).join("")
+    op.map(p=>`<tr><td>${p.module}<div class="sub">${p.sym}</div></td><td>${p.side}</td><td class="n sm">${p.lots}</td><td class="n sm">${p.entry}</td><td class="n">${p.sl}${p.be?" <span class='muted'>(BE)</span>":""}</td><td class="n sm">${p.tp??"–"}</td><td class="n ${cls(p.pnl)}">${money(p.pnl)}</td><td class="n muted">${r2(p.best)}</td><td class="sm">${t(p.opened)}</td><td>${exitCell(p)}</td></tr>`).join("")
     :`<tr><td class="muted">No open positions</td></tr>`;
 
   // ---------- activity
