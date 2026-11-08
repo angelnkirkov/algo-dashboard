@@ -175,10 +175,11 @@ function render(d){
 
   // ---------- risk right now
   const rk=d.risk||{}, gr=rk.groups||{}, gmax=Math.max(1,...Object.values(gr));
-  const dayPct=rk.day_start?100*(eq/rk.day_start-1):null, dsp=rk.daily_stop_pct;
+  const dsx=rk.ds_extra||0, dayPct=rk.day_start?100*((eq+dsx)/(rk.day_start+dsx)-1):null, dsp=rk.daily_stop_pct;
   $("#riskc").innerHTML=`<div class="rows">`+
     (Object.keys(gr).length?Object.entries(gr).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span>${k}</span><div class="bar"><i style="width:${100*v/gmax}%"></i></div><span class="n">${money(v,0)} <span class="muted">${eq?(100*v/eq).toFixed(1):"–"}%</span></span>`).join("")
       :`<span class="muted">No open risk</span><span></span><span></span>`)+
+    (rk.extra_balance?`<span>Sized as</span><span class="muted">IC equity + ${money(rk.extra_balance,0)} = ${money(eq+rk.extra_balance,0)}</span><span></span>`:"")+
     `<span>Long / short</span><span class="muted">${money(rk.long||0,0)} / ${money(rk.short||0,0)}</span><span></span>`+
     (dsp?`<span>Today vs daily stop</span><div class="bar dd"><i style="width:${dayPct!=null&&dayPct<0?Math.min(100,100*-dayPct/dsp):0}%"></i></div><span class="n ${cls(dayPct)}">${pct(dayPct,1)} <span class="muted">/ −${dsp}%</span></span>`:"")+
     `</div>`+(rk.day_stopped?`<div class="bad" style="margin-top:8px">🛑 Daily loss stop active: no new trades until tomorrow.</div>`:"");
