@@ -99,7 +99,7 @@ footer{color:var(--muted);font-size:12px;margin-top:8px}
   </div>
   <section class="card"><h2>Recent trades</h2><div class="scroll"><table class="tbl" id="closed"></table></div>
     <button class="btn" id="moretr" hidden>Show 40 more</button></section>
-  <footer>Times are shown in your device's time zone (<span id="tz"></span>), converted from broker server time (New York + 7h, <span id="srv"></span>). R = profit in units of the risk taken; "Best" = the most the trade was up, in R. Data refreshes every minute; the bot uploads every few minutes.</footer>
+  <footer>Times are shown in your device's time zone (<span id="tz"></span>), converted from broker server time (New York + 7h, <span id="srv"></span>). R = profit in units of the risk taken; "Best" = the most the trade was up, in R; "Worst" = the most it was down (recorded for trades opened after 10 Nov). Data refreshes every minute; the bot uploads every few minutes.</footer>
 </main>
 <script>
 const $=s=>document.querySelector(s);
@@ -228,8 +228,8 @@ function render(d){
   // ---------- open positions
   const op=d.open||[], upl=op.reduce((a,p)=>a+(p.pnl||0),0);
   $("#opensum").innerHTML=op.length?`${op.length} · <span class="${cls(upl)}">${money(upl)}</span>`:"";
-  $("#open").innerHTML=op.length?`<tr><th>Setup</th><th>Side</th><th class="n sm">Lots</th><th class="n sm">Entry</th><th class="n">Stop</th><th class="n sm">Target</th><th class="n">P/L</th><th class="n">Best</th><th class="sm">Opened</th><th>Exit</th></tr>`+
-    op.map(p=>`<tr><td>${p.module}<div class="sub">${p.sym}</div></td><td>${p.side}</td><td class="n sm">${p.lots}</td><td class="n sm">${p.entry}</td><td class="n">${p.sl}${p.be?" <span class='muted'>(BE)</span>":""}</td><td class="n sm">${p.tp??"–"}</td><td class="n ${cls(p.pnl)}">${money(p.pnl)}</td><td class="n muted">${r2(p.best)}</td><td class="sm">${t(p.opened)}</td><td>${exitCell(p)}</td></tr>`).join("")
+  $("#open").innerHTML=op.length?`<tr><th>Setup</th><th>Side</th><th class="n sm">Lots</th><th class="n sm">Entry</th><th class="n">Stop</th><th class="n sm">Target</th><th class="n">P/L</th><th class="n">Best</th><th class="n">Worst</th><th class="sm">Opened</th><th>Exit</th></tr>`+
+    op.map(p=>`<tr><td>${p.module}<div class="sub">${p.sym}</div></td><td>${p.side}</td><td class="n sm">${p.lots}</td><td class="n sm">${p.entry}</td><td class="n">${p.sl}${p.be?" <span class='muted'>(BE)</span>":""}</td><td class="n sm">${p.tp??"–"}</td><td class="n ${cls(p.pnl)}">${money(p.pnl)}</td><td class="n muted">${r2(p.best)}</td><td class="n muted">${p.worst==null?"–":r2(p.worst)}</td><td class="sm">${t(p.opened)}</td><td>${exitCell(p)}</td></tr>`).join("")
     :`<tr><td class="muted">No open positions</td></tr>`;
 
   // ---------- activity
@@ -262,8 +262,8 @@ function render(d){
 
   // ---------- recent trades
   const rc=cl.slice().reverse();
-  $("#closed").innerHTML=rc.length?`<tr><th>Closed</th><th>Setup</th><th class="sm">Side</th><th class="n">P/L</th><th class="n">R</th><th class="n">Best</th><th class="sm">Reason</th></tr>`+
-    rc.slice(0,nTr).map(c=>`<tr><td>${tt(c.closed)}</td><td>${c.module}<div class="sub">${c.sym}</div></td><td class="sm">${c.side>0?"BUY":"SELL"}</td><td class="n ${cls(c.pnl)}">${money(c.pnl)}</td><td class="n ${cls(c.R)}">${c.R==null?"–":(c.R>=0?"+":"")+c.R.toFixed(2)}</td><td class="n muted">${c.mfe==null?"–":r2(c.mfe)}</td><td class="muted sm">${c.reason}</td></tr>`).join("")
+  $("#closed").innerHTML=rc.length?`<tr><th>Closed</th><th>Setup</th><th class="sm">Side</th><th class="n">P/L</th><th class="n">R</th><th class="n">Best</th><th class="n">Worst</th><th class="sm">Reason</th></tr>`+
+    rc.slice(0,nTr).map(c=>`<tr><td>${tt(c.closed)}</td><td>${c.module}<div class="sub">${c.sym}</div></td><td class="sm">${c.side>0?"BUY":"SELL"}</td><td class="n ${cls(c.pnl)}">${money(c.pnl)}</td><td class="n ${cls(c.R)}">${c.R==null?"–":(c.R>=0?"+":"")+c.R.toFixed(2)}</td><td class="n muted">${c.mfe==null?"–":r2(c.mfe)}</td><td class="n muted">${c.mae==null?"–":r2(c.mae)}</td><td class="muted sm">${c.reason}</td></tr>`).join("")
     :`<tr><td class="muted">No closed trades yet</td></tr>`;
   $("#moretr").hidden=rc.length<=nTr;
 }
