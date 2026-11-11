@@ -92,7 +92,7 @@ footer{color:var(--muted);font-size:12px;margin-top:8px}
   <section class="card"><h2>By setup (since start)</h2><div class="scroll"><table class="tbl" id="stats"></table></div>
     <div class="sub" style="margin-top:6px">Backtest = average R per trade in the 2013–2026 replay with all costs. Live averages over a few trades swing a lot; compare after 30+ trades.</div></section>
   <section class="card"><h2>Execution quality <span class="sub">how fills compare with the plan</span></h2><div class="scroll"><table class="tbl" id="xq"></table></div>
-    <div class="sub" style="margin-top:6px">Slippage = fill vs the planned price (stop level or the price sent), in R; negative = worse than planned. Spread = cost of the spread at entry, in R. The backtest assumed about half a spread of slippage on stop fills.</div></section>
+    <div class="sub" style="margin-top:6px">Slippage = fill vs the planned price (stop level or the price sent), in R; negative = worse than planned. Stop-exit slippage = fill vs the stop-loss level (recorded from 11 Nov). Spread = cost of the spread at entry, in R. Spreads per fill = average slippage over entries and stop exits, divided by the average spread; the backtest assumed 0.5. Limits (replay 2013–2026): above "halve" half of the setup's edge is gone, above "off" all of it. A setup is judged from 30 trades, on its last 60. With the slippage guard on, the bot halves a setup's risk above "halve" and switches it off above "off" by itself (/slipreset in Telegram turns everything back on and starts measuring afresh).</div></section>
   <div class="two twowrap">
     <section class="card"><h2>Months</h2><div class="scroll"><table class="tbl" id="months"></table></div></section>
     <section class="card"><h2>Costs paid <span class="sub">since start</span></h2><div id="costs"></div></section>
@@ -195,13 +195,31 @@ function render(d){
     :`<tr><td class="muted">No closed trades yet</td></tr>`;
 
   // ---------- execution quality
-  const xs=(d.closed||[]).filter(c=>c.xq), agg={};
+  const xs=(d.closed||[]).filter(c=>c.xq), agg={}, lim=d.slip_limits||{}, minN=d.slip_min_trades||30;
+  const sgS=((d.slip_guard||{}).setups)||{}, win=d.slip_window||60, cntM={};
+  for(const c of [...xs].reverse()){                       // per setup: the last `win` trades since its last reset (as the bot counts)
+    const sn=(sgS[c.module]||{}).since||0; cntM[c.module]=(cntM[c.module]||0)+1;
+    c._m=(c.closed>sn&&cntM[c.module]<=win)}
   for(const c of xs){for(const k of ["Stop-order fills","Market entries",c.module]){
+    if(k===c.module&&!c._m)continue;
     if(k==="Stop-order fills"&&c.xq.t!=="stop")continue; if(k==="Market entries"&&c.xq.t!=="market")continue;
-    const a=agg[k]||(agg[k]={n:0,sl:0,sp:0,ns:0}); a.n++; a.sl+=(c.xq.slip_r||0); if(c.xq.spr_r!=null){a.sp+=c.xq.spr_r;a.ns++}}}
+    const a=agg[k]||(agg[k]={n:0,sl:0,sp:0,ns:0,xs:0,nx:0}); a.n++; a.sl+=(c.xq.slip_r||0); if(c.xq.spr_r!=null){a.sp+=c.xq.spr_r;a.ns++}
+    if(c.xq.xslip_r!=null){a.xs+=c.xq.xslip_r;a.nx++}}}
   const order=["Stop-order fills","Market entries",...Object.keys(agg).filter(k=>!k.includes(" fills")&&k!=="Market entries").sort()];
-  $("#xq").innerHTML=xs.length?`<tr><th>Group</th><th class="n">Trades</th><th class="n">Avg slippage</th><th class="n">Avg spread</th></tr>`+
-    order.filter(k=>agg[k]).map((k,i)=>{const a=agg[k],sl=-a.sl/a.n;return `<tr><td>${i<2?"<b>"+k+"</b>":k}</td><td class="n">${a.n}</td><td class="n ${sl<-0.02?"neg":""}">${(sl>=0?"+":"")+sl.toFixed(3)}R</td><td class="n muted">${a.ns?(a.sp/a.ns).toFixed(3)+"R":"–"}</td></tr>`}).join("")
+  const perFill=a=>{const sp=a.ns?a.sp/a.ns:0; return sp>0?(a.sl+a.xs)/(a.n+a.nx)/sp:null};          // slippage per fill, in spreads
+  const status=(k,a,pf)=>{const L=lim[k]; if(!L)return `<span class="muted">not sensitive</span>`;
+    if(pf==null)return "";
+    const g=(d.slip_guard||{}), sc=((g.setups||{})[k]||{}).scale;
+    if(g.on&&sc===0)return `<span class="neg"><b>switched off by the bot</b></span>`;
+    if(g.on&&sc===0.5)return `<span class="neg">risk halved by the bot</span>`;
+    if(a.n<minN)return `<span class="muted">${a.n} of ${minN} trades</span>`;
+    return pf>L[1]?`<span class="neg"><b>above the off limit</b></span>`:pf>L[0]?`<span class="neg">above the halve limit</span>`:`<span class="pos">✓ within limits</span>`};
+  $("#xq").innerHTML=xs.length?`<tr><th>Group</th><th class="n">Trades</th><th class="n">Entry slippage</th><th class="n">Stop-exit slippage</th><th class="n">Avg spread</th><th class="n">Spreads per fill</th><th class="n sm">Limits: halve / off</th><th></th></tr>`+
+    order.filter(k=>agg[k]).map(k=>{const a=agg[k],sl=-a.sl/a.n,pf=perFill(a),L=lim[k],grp=(k==="Stop-order fills"||k==="Market entries");
+      return `<tr><td>${grp?"<b>"+k+"</b>":k}</td><td class="n">${a.n}</td><td class="n ${sl<-0.02?"neg":""}">${(sl>=0?"+":"")+sl.toFixed(3)}R</td>`+
+        `<td class="n muted">${a.nx?((-a.xs/a.nx)>=0?"+":"")+(-a.xs/a.nx).toFixed(3)+"R ("+a.nx+")":"–"}</td>`+
+        `<td class="n muted">${a.ns?(a.sp/a.ns).toFixed(3)+"R":"–"}</td><td class="n">${pf==null?"–":pf.toFixed(1)}</td>`+
+        `<td class="n sm muted">${grp?"":L?L[0]+" / "+L[1]:"–"}</td><td class="sm">${grp?"":status(k,a,pf)}</td></tr>`}).join("")
     :`<tr><td class="muted">Collected from now on: each new trade records its fill and spread.</td></tr>`;
 
   // ---------- chart
