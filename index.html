@@ -163,6 +163,9 @@ function render(d){
   $("#health").innerHTML=[
     `<span>Heartbeat <b class="${hbAge!=null&&hbAge<15?"ok":"bad"}">${hbAge==null?"–":hbAge+" min ago"}</b></span>`,
     `<span>MT5 <b class="${h.mt5_connected===false?"bad":"ok"}">${h.mt5_connected==null?"–":(h.mt5_connected?"connected":"DISCONNECTED")}</b></span>`,
+    (()=>{const w=h.watchdog||{}; if(!w.on)return `<span>Watchdog <b class="muted">off</b></span>`;
+      const a=w.age==null?null:Math.round(w.age/60), ok=a!=null&&a<=2*Math.round((w.every||300)/60)+1;
+      return `<span>Watchdog <b class="${ok?"ok":"bad"}">${a==null?"no ping yet":"pinged "+a+" min ago"}</b></span>`})(),
     `<span>Restarts (7 days) <b>${h.restarts_7d??"–"}</b>${h.last_restart?` <span class="muted">last ${t(h.last_restart)}</span>`:""}</span>`,
     `<span>Warnings (7 days) <b class="${h.warnings_7d?"bad":""}">${h.warnings_7d??"–"}</b></span>`,
     `<span>Rejected orders (7 days) <b class="${h.rejects_7d?"bad":""}">${h.rejects_7d??"–"}</b></span>`,
@@ -190,6 +193,16 @@ function render(d){
     const e=s0.n*btr[k], sd=(bsd[k]||1)*Math.sqrt(s0.n); tn+=s0.n;tR+=s0.R;tE+=e;tV+=sd*sd;rowsT.push([k,s0.n,s0.R,e,sd])}
   const verdict=(R,e,sd,n)=>n<10?'<span class="muted">few trades</span>':R<e-2*sd?'<span class="bad">below normal</span>':(R>e+2*sd?'<span class="ok">above normal</span>':'<span class="ok">✓ normal</span>');
   const rowT=(k,n,R,e,sd,b)=>`<tr><td>${b?"<b>"+k+"</b>":k}</td><td class="n">${n}</td><td class="n ${cls(R)}">${r2(R)}</td><td class="n muted">${r2(e)}</td><td class="n sm muted">${r2(e-2*sd)} … ${r2(e+2*sd)}</td><td>${verdict(R,e,sd,n)}</td></tr>`;
+  const trk=d.track&&d.track.rows&&d.track.rows.length?d.track:null;
+  if(trk){
+    const stName={few:'<span class="muted">few trades</span>',normal:'<span class="ok">✓ normal</span>',worst5:'<span class="bad">worst 5% of the backtest</span>',worst1:'<span class="bad"><b>worst 1% of the backtest</b></span>'};
+    let n=0,R=0,E=0,V=0; for(const x of trk.rows){n+=x.n;R+=x.R;E+=x.exp;V+=x.n*(x.sd||1)*(x.sd||1)}
+    const sdA=Math.sqrt(V), q5=E-1.645*sdA, q1=E-2.326*sdA, stA=n<(trk.min_trades||10)?"few":(R<=q1?"worst1":(R<=q5?"worst5":"normal"));
+    const row=(k,x,b)=>`<tr><td>${b?"<b>"+k+"</b>":k}</td><td class="n">${x.n}</td><td class="n ${cls(x.R)}">${r2(x.R)}</td><td class="n muted">${r2(x.exp)}</td><td class="n sm muted">${r2(x.q05)}</td><td class="n sm muted">${r2(x.q01)}</td><td>${stName[x.status]||""}</td></tr>`;
+    $("#track").innerHTML=`<tr><th>Setup</th><th class="n">Trades</th><th class="n">Live R</th><th class="n">Expected</th><th class="n sm">Worst 5% level</th><th class="n sm">Worst 1% level</th><th></th></tr>`+
+      row("All setups",{n:n,R:R,exp:E,q05:q5,q01:q1,status:stA},true)+trk.rows.map(x=>row(x.module,x)).join("")+
+      `<tr><td colspan="7" class="sm muted">Levels = the total R that only 5% / 1% of the backtest's stretches of that many trades fell below. A setup at or below a level is flagged; the bot does not change its risk.${trk.on?"":" Telegram alerts are off (tracking: enabled: false)."}</td></tr>`;
+  } else
   $("#track").innerHTML=rowsT.length?`<tr><th>Setup</th><th class="n">Trades</th><th class="n">Live R</th><th class="n">Expected</th><th class="n sm">Normal range</th><th></th></tr>`+
     rowT("All setups",tn,tR,tE,Math.sqrt(tV),true)+rowsT.sort((a,b)=>b[1]-a[1]).map(x=>rowT(...x)).join("")
     :`<tr><td class="muted">No closed trades yet</td></tr>`;
