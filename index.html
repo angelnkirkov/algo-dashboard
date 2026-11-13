@@ -91,6 +91,7 @@ footer{color:var(--muted);font-size:12px;margin-top:8px}
     <button class="btn" id="more" hidden>Show all</button></section>
   <section class="card"><h2>By setup (since start)</h2><div class="scroll"><table class="tbl" id="stats"></table></div>
     <div class="sub" style="margin-top:6px">Backtest = average R per trade in the 2013–2026 replay with all costs. Live averages over a few trades swing a lot; compare after 30+ trades.</div></section>
+  <section class="card"><h2>Margin cap <span class="sub">entries it scaled down or skipped, per setup</span></h2><div class="scroll"><table class="tbl" id="mcut"></table></div></section>
   <section class="card"><h2>Execution quality <span class="sub">how fills compare with the plan</span></h2><div class="scroll"><table class="tbl" id="xq"></table></div>
     <div class="sub" style="margin-top:6px">Slippage = fill vs the planned price (stop level or the price sent), in R; negative = worse than planned. Stop-exit slippage = fill vs the stop-loss level (recorded from 11 Nov). Spread = cost of the spread at entry, in R. Spreads per fill = average slippage over entries and stop exits, divided by the average spread; the backtest assumed 0.5. Limits (replay 2013–2026): above "halve" half of the setup's edge is gone, above "off" all of it. A setup is judged from 30 trades, on its last 60. With the slippage guard on, the bot halves a setup's risk above "halve" and switches it off above "off" by itself (/slipreset in Telegram turns everything back on and starts measuring afresh).</div></section>
   <div class="two twowrap">
@@ -207,6 +208,12 @@ function render(d){
     rowT("All setups",tn,tR,tE,Math.sqrt(tV),true)+rowsT.sort((a,b)=>b[1]-a[1]).map(x=>rowT(...x)).join("")
     :`<tr><td class="muted">No closed trades yet</td></tr>`;
 
+  // ---------- margin cap cuts
+  const mc_=d.margin_cuts||[];
+  $("#mcut").innerHTML=mc_.length?`<tr><th>Setup</th><th class="n">Scaled (7 days)</th><th class="n">Skipped (7 days)</th><th class="n">Scaled (30 days)</th><th class="n">Skipped (30 days)</th><th class="n">Avg size kept when scaled</th><th>Cap</th></tr>`+
+    mc_.map(x=>`<tr><td>${esc(x.module)}</td><td class="n">${x.scaled7}</td><td class="n ${x.skipped7?"bad":""}">${x.skipped7}</td><td class="n">${x.scaled30}</td><td class="n">${x.skipped30}</td><td class="n">${x.kept==null?"–":Math.round(100*x.kept)+"%"}</td><td class="sm muted">${x.crypto>=(x.scaled30+x.skipped30)/2?"crypto cap":"total cap"}</td></tr>`).join("")+
+    `<tr><td colspan="7" class="sm muted">An entry retried during the day counts once (per market, side and day). Counted since the bot's update of 14 Nov.</td></tr>`
+    :'<tr><td class="muted">Nothing scaled or skipped by the margin cap in the last 30 days (counted since the update of 14 Nov)</td></tr>';
   // ---------- execution quality
   const xs=(d.closed||[]).filter(c=>c.xq), agg={}, lim=d.slip_limits||{}, minN=d.slip_min_trades||30;
   const sgS=((d.slip_guard||{}).setups)||{}, win=d.slip_window||60, cntM={};
