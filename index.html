@@ -116,9 +116,10 @@ const r2=x=>x==null?"–":(x>=0?"+":"")+x.toFixed(2)+"R";
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 function kpi(l,v,c="",extra=""){return `<div class="kpi"><div class="l">${l}</div><div class="v ${c}">${v}</div>${extra}</div>`}
-function exitCell(p){if(p.exit_at)return tt(p.exit_at);const e=p.exit_rule;if(!e)return "–";
-  if(e.approx&&e.max_exit)return `≈ ${tt(e.max_exit)}<div class="sub">${esc(e.rule)}</div>`;
-  return `signal<div class="sub">${esc(e.rule)}${e.max_exit?" · max "+t(e.max_exit):""}</div>`}
+function exitCell(p){const k=p.keep?`<div class="sub">${esc(p.keep)}</div>`:"";
+  if(p.exit_at)return tt(p.exit_at)+k;const e=p.exit_rule;if(!e)return "–"+k;
+  if(e.approx&&e.max_exit)return `≈ ${tt(e.max_exit)}<div class="sub">${esc(e.rule)}</div>`+k;
+  return `signal<div class="sub">${esc(e.rule)}${e.max_exit?" · max "+t(e.max_exit):""}</div>`+k}
 function startEq(days,eq,fromIso){for(const [d,v] of days){if(d>=fromIso)return v}return eq}
 function render(d){
   last=d; cur=d.currency||"EUR";
